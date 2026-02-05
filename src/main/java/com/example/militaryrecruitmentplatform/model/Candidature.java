@@ -1,8 +1,6 @@
-// model/Candidature.java
 package com.example.militaryrecruitmentplatform.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -10,8 +8,8 @@ import java.util.List;
 
 @Entity
 @Table(name = "candidatures")
-@Data
 public class Candidature {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -55,4 +53,50 @@ public class Candidature {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    // Constructeurs
+    public Candidature() {}
+
+    // Getters et Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getNom() { return nom; }
+    public void setNom(String nom) { this.nom = nom; }
+
+    public String getPrenom() { return prenom; }
+    public void setPrenom(String prenom) { this.prenom = prenom; }
+
+    public String getCin() { return cin; }
+    public void setCin(String cin) { this.cin = cin; }
+
+    public LocalDate getDateNaissance() { return dateNaissance; }
+    public void setDateNaissance(LocalDate dateNaissance) { this.dateNaissance = dateNaissance; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getTelephone() { return telephone; }
+    public void setTelephone(String telephone) { this.telephone = telephone; }
+
+    public String getDiplome() { return diplome; }
+    public void setDiplome(String diplome) { this.diplome = diplome; }
+
+    public String getEtablissement() { return etablissement; }
+    public void setEtablissement(String etablissement) { this.etablissement = etablissement; }
+
+    public String getUniteChoisie() { return uniteChoisie; }
+    public void setUniteChoisie(String uniteChoisie) { this.uniteChoisie = uniteChoisie; }
+
+    public CandidatureStatut getStatut() { return statut; }
+    public void setStatut(CandidatureStatut statut) { this.statut = statut; }
+
+    public List<HistoriqueCandidature> getHistorique() { return historique; }
+    public void setHistorique(List<HistoriqueCandidature> historique) { this.historique = historique; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

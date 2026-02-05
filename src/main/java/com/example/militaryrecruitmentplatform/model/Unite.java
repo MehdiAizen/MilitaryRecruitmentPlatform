@@ -1,14 +1,12 @@
-// model/Unite.java
 package com.example.militaryrecruitmentplatform.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "unites")
-@Data
 public class Unite {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -24,4 +22,23 @@ public class Unite {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // Constructeur
+    public Unite() {}
+
+    // Getters et Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getNom() { return nom; }
+    public void setNom(String nom) { this.nom = nom; }
+
+    public String getGouvernorat() { return gouvernorat; }
+    public void setGouvernorat(String gouvernorat) { this.gouvernorat = gouvernorat; }
+
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

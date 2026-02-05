@@ -1,4 +1,4 @@
-// model/CandidatureStatut.java
+
 package com.example.militaryrecruitmentplatform.model;
 
 public enum CandidatureStatut {

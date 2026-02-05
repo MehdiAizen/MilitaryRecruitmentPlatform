@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { statsAPI, candidatureAPI } from '../services/api';
 import {
     Users, Clock, CheckCircle, XCircle,
-    FileText, LogOut, TrendingUp
+    FileText, LogOut, TrendingUp, Shield
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -158,20 +158,37 @@ const Dashboard = () => {
                     </button>
 
                     {user.role === 'ADMIN' && (
-                        <button
-                            onClick={() => navigate('/stats')}
-                            className="card hover:shadow-lg transition-shadow cursor-pointer group"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="bg-green-100 p-3 rounded-lg group-hover:bg-green-200 transition-colors">
-                                    <TrendingUp className="w-6 h-6 text-green-600" />
+                        <>
+                            <button
+                                onClick={() => navigate('/stats')}
+                                className="card hover:shadow-lg transition-shadow cursor-pointer group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-green-100 p-3 rounded-lg group-hover:bg-green-200 transition-colors">
+                                        <TrendingUp className="w-6 h-6 text-green-600" />
+                                    </div>
+                                    <div className="text-left">
+                                        <h3 className="font-semibold text-gray-900">Statistiques</h3>
+                                        <p className="text-sm text-gray-600">Voir les rapports</p>
+                                    </div>
                                 </div>
-                                <div className="text-left">
-                                    <h3 className="font-semibold text-gray-900">Statistiques</h3>
-                                    <p className="text-sm text-gray-600">Voir les rapports</p>
+                            </button>
+
+                            <button
+                                onClick={() => navigate('/users')}
+                                className="card hover:shadow-lg transition-shadow cursor-pointer group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-purple-100 p-3 rounded-lg group-hover:bg-purple-200 transition-colors">
+                                        <Shield className="w-6 h-6 text-purple-600" />
+                                    </div>
+                                    <div className="text-left">
+                                        <h3 className="font-semibold text-gray-900">Utilisateurs</h3>
+                                        <p className="text-sm text-gray-600">Gérer les comptes</p>
+                                    </div>
                                 </div>
-                            </div>
-                        </button>
+                            </button>
+                        </>
                     )}
                 </div>
 

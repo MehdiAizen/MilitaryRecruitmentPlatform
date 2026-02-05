@@ -1,4 +1,3 @@
-// UPDATED: src/App.jsx
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -9,7 +8,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CandidatureForm from './pages/CandidatureForm';
 import CandidaturesList from './pages/CandidaturesList';
-import Stats from './pages/Stats';  // ADDED
+import Stats from './pages/Stats';
+import UserManagement from './pages/UserManagement';
 
 function App() {
     return (
@@ -39,12 +39,22 @@ function App() {
                         }
                     />
 
-                    {/* ADDED: Stats route - only for ADMIN */}
+                    {/* Stats route - only for ADMIN */}
                     <Route
                         path="/stats"
                         element={
                             <ProtectedRoute allowedRoles={['ADMIN']}>
                                 <Stats />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    {/* User Management route - only for ADMIN */}
+                    <Route
+                        path="/users"
+                        element={
+                            <ProtectedRoute allowedRoles={['ADMIN']}>
+                                <UserManagement />
                             </ProtectedRoute>
                         }
                     />

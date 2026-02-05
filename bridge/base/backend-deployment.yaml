@@ -1,0 +1,43 @@
+#! backend-deployment.yaml
+# Generated code, do not edit
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: backend
+    namespace: militaryrecruitmentplatform
+    labels:
+        com.docker.compose.project: militaryrecruitmentplatform
+        com.docker.compose.service: backend
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            com.docker.compose.project: militaryrecruitmentplatform
+            com.docker.compose.service: backend
+    strategy:
+        type: Recreate
+    template:
+        metadata:
+            labels:
+                com.docker.compose.project: militaryrecruitmentplatform
+                com.docker.compose.service: backend
+                com.docker.compose.network.military-network: "true"
+        spec:
+            containers:
+                - name: military-backend
+                  image: militaryrecruitmentplatform-backend
+                  imagePullPolicy: IfNotPresent
+                  env:
+                    - name: JWT_EXPIRATION
+                      value: "86400000"
+                    - name: JWT_SECRET
+                      value: "MySuperSecretKeyForJWTTokenGenerationMustBeVeryLong1234567890"
+                    - name: SPRING_DATASOURCE_PASSWORD
+                      value: "password"
+                    - name: SPRING_DATASOURCE_URL
+                      value: "jdbc:postgresql://postgres:5432/military_recruitment"
+                    - name: SPRING_DATASOURCE_USERNAME
+                      value: "postgres"
+                  ports:
+                    - name: backend-8081
+                      containerPort: 8081
