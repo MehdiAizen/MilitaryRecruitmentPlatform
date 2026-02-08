@@ -27,7 +27,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      # Important : Dans Docker, on utilise le nom du service 'postgres' et non localhost
+      # Important: Use service name 'postgres' not localhost
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/military_recruitment
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: password
@@ -42,7 +42,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      # AJOUT CRITIQUE ICI : On passe l'URL de l'API au build
+      # FIXED: Use /api so nginx can proxy it
       args:
         VITE_API_URL: /api
     container_name: military-frontend
@@ -51,7 +51,6 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # L'URL API n'est pas nécessaire ici car elle est "baked-in" au build
       - NODE_ENV=production
     networks:
       - military-network
