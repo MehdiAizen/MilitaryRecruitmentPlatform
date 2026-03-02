@@ -21,7 +21,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Build with Maven
-        run: mvn clean package -DskipTests
+        run: mvn clean package -DskipTests -Dfile.encoding=UTF-8
 
       - name: Build Docker image
         run: docker build -t military-recruitment-backend:${{ github.sha }} .
