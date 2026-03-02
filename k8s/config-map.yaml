@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: military-app
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-service:5432/military_recruitment"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"

@@ -1,0 +1,9 @@
+#! postgres-service.yaml
+# Generated code, do not edit
+apiVersion: v1
+kind: Service
+metadata:
+    name: postgres-published
+    namespace: militaryrecruitmentplatform
+spec:
+    type: LoadBalancer

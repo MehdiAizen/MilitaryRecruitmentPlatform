@@ -1,0 +1,299 @@
+# =============================================================
+# docker-compose.soc.yml
+# Stack SOC : Wazuh + ELK Stack + Suricata + Nginx DMZ
+# 
+# USAGE :
+#   Démarrer UNIQUEMENT la SOC : docker compose -f docker-compose.soc.yml up -d
+#   Démarrer TOUT (app + SOC)  : docker compose -f docker-compose.yml -f docker-compose.soc.yml up -d
+#
+# PRÉREQUIS :
+#   sudo sysctl -w vm.max_map_count=262144  (requis par Elasticsearch)
+# =============================================================
+
+services:
+
+  # ─────────────────────────────────────────────────────
+  # ZONE DMZ — Point d'entrée sécurisé
+  # ─────────────────────────────────────────────────────
+
+  nginx-dmz:
+    image: nginx:alpine
+    container_name: nginx-dmz
+    ports:
+      - "80:80"       # Trafic HTTP public
+      - "443:443"     # Trafic HTTPS public
+    volumes:
+      - ./nginx-dmz/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx-dmz/certs:/etc/nginx/certs:ro
+      - nginx_dmz_logs:/var/log/nginx
+    networks:
+      - dmz_network
+      - lan_network
+    depends_on:
+      - filebeat
+    restart: unless-stopped
+    # Suricata surveille ce container (même réseau)
+
+  # ─────────────────────────────────────────────────────
+  # IDS/IPS — Détection d'intrusion réseau
+  # ─────────────────────────────────────────────────────
+
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: suricata
+    # Mode réseau host pour voir TOUT le trafic réseau
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    volumes:
+      - ./suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./suricata/rules:/etc/suricata/rules:ro
+      - suricata_logs:/var/log/suricata
+    # Lance Suricata sur l'interface réseau principale
+    command: -i eth0 --af-packet
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────
+  # ELK STACK — Centralisation des logs
+  # ─────────────────────────────────────────────────────
+
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - xpack.security.enabled=false   # Simplifié pour le projet
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - soc_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  kibana:
+    image: kibana:8.11.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+    ports:
+      - "5601:5601"   # Interface web : http://localhost:5601
+    networks:
+      - soc_network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  logstash:
+    image: logstash:8.11.0
+    container_name: logstash
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+    ports:
+      - "5044:5044"   # Port Beats (reçoit les logs de Filebeat)
+      - "9600:9600"   # API Logstash
+    networks:
+      - soc_network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - LS_JAVA_OPTS=-Xmx512m -Xms512m
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────
+  # FILEBEAT — Collecte les logs des containers
+  # ─────────────────────────────────────────────────────
+
+  filebeat:
+    image: elastic/filebeat:8.11.0
+    container_name: filebeat
+    user: root   # Nécessaire pour lire les logs Docker
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      # Monte le socket Docker pour lire les logs de TOUS les containers
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # Logs Suricata
+      - suricata_logs:/suricata-logs:ro
+      # Logs Nginx DMZ
+      - nginx_dmz_logs:/nginx-logs:ro
+    networks:
+      - soc_network
+    depends_on:
+      - logstash
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────
+  # WAZUH — SIEM + Agent de détection
+  # ─────────────────────────────────────────────────────
+
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.7.0
+    container_name: wazuh-manager
+    hostname: wazuh-manager
+    environment:
+      - WAZUH_API_USER=wazuh-wui
+      - WAZUH_API_PASSWORD=MyS3cr3tP4ssw0rd!
+    volumes:
+      - wazuh_api_configuration:/var/ossec/api/configuration
+      - wazuh_etc:/var/ossec/etc
+      - wazuh_logs:/var/ossec/logs
+      - wazuh_queue:/var/ossec/queue
+      - wazuh_var_multigroups:/var/ossec/var/multigroups
+      - wazuh_integrations:/var/ossec/integrations
+      - wazuh_active_response:/var/ossec/active-response/bin
+      - wazuh_agentless:/var/ossec/agentless
+      - wazuh_wodles:/var/ossec/wodles
+      - filebeat_etc:/etc/filebeat
+      - filebeat_var:/var/lib/filebeat
+      - ./wazuh/config/wazuh.conf:/var/ossec/etc/ossec.conf:ro
+      - ./wazuh/config/rules:/var/ossec/etc/rules:ro
+    ports:
+      - "1514:1514/udp"   # Agents Wazuh
+      - "1515:1515"       # Enrôlement des agents
+      - "514:514/udp"     # Syslog
+      - "55000:55000"     # API REST Wazuh
+    networks:
+      - soc_network
+    restart: unless-stopped
+
+  wazuh-indexer:
+    image: wazuh/wazuh-indexer:4.7.0
+    container_name: wazuh-indexer
+    hostname: wazuh-indexer
+    environment:
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - wazuh_indexer_data:/var/lib/wazuh-indexer
+    ports:
+      - "9201:9200"   # Port différent pour éviter conflit avec ELK
+    networks:
+      - soc_network
+    restart: unless-stopped
+
+  wazuh-dashboard:
+    image: wazuh/wazuh-dashboard:4.7.0
+    container_name: wazuh-dashboard
+    hostname: wazuh-dashboard
+    environment:
+      - OPENSEARCH_HOSTS=https://wazuh-indexer:9200
+      - WAZUH_API_URL=https://wazuh-manager
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=MyS3cr3tP4ssw0rd!
+    ports:
+      - "5602:5601"   # Dashboard Wazuh : http://localhost:5602 (admin/admin)
+    networks:
+      - soc_network
+    depends_on:
+      - wazuh-indexer
+      - wazuh-manager
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────
+  # PROMETHEUS + GRAFANA — Métriques containers
+  # ─────────────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - soc_network
+      - lan_network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3001:3000"   # http://localhost:3001 (admin/admin123)
+    networks:
+      - soc_network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────
+  # NODE EXPORTER — Métriques système des nœuds
+  # ─────────────────────────────────────────────────────
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    network_mode: host
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+    restart: unless-stopped
+
+# ─────────────────────────────────────────────────────
+# RÉSEAUX — Segmentation comme demandé dans le CDC
+# ─────────────────────────────────────────────────────
+networks:
+  dmz_network:
+    name: dmz_network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.10.0/24   # Zone DMZ du cahier des charges
+  lan_network:
+    name: lan_network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.20.0/24   # Zone LAN du cahier des charges
+  soc_network:
+    name: soc_network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.30.0/24   # Zone SOC du cahier des charges
+
+# ─────────────────────────────────────────────────────
+# VOLUMES PERSISTANTS
+# ─────────────────────────────────────────────────────
+volumes:
+  elasticsearch_data:
+  grafana_data:
+  suricata_logs:
+  nginx_dmz_logs:
+  wazuh_api_configuration:
+  wazuh_etc:
+  wazuh_logs:
+  wazuh_queue:
+  wazuh_var_multigroups:
+  wazuh_integrations:
+  wazuh_active_response:
+  wazuh_agentless:
+  wazuh_wodles:
+  filebeat_etc:
+  filebeat_var:
+  wazuh_indexer_data:

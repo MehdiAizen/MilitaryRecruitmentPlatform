@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: military-frontend
+  namespace: military-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: military-frontend
+  template:
+    metadata:
+      labels:
+        app: military-frontend
+    spec:
+      containers:
+        - name: frontend
+          # Utilise l'image que tu as construite avec Docker Compose ou Build
+          image: militaryrecruitmentplatform-main-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000

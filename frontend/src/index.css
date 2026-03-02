@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --color-military-navy: #1e3a5f;
+        --color-military-olive: #556b2f;
+    }
+}
+
+@layer components {
+    .card {
+        @apply bg-white rounded-xl shadow-md border border-gray-200 p-6;
+    }
+
+    .input-field {
+        @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg
+        focus:ring-2 focus:ring-blue-600 focus:border-transparent
+        outline-none bg-white;
+    }
+
+    /* SELECT DÉROULANT STYLÉ */
+    .select-field {
+        @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg
+        focus:ring-2 focus:ring-blue-600 focus:border-transparent
+        outline-none bg-white cursor-pointer
+        text-gray-700 appearance-none;
+    }
+
+    .select-field:focus {
+        @apply ring-2 ring-blue-600 border-transparent;
+    }
+
+    /* Style des options dans le select */
+    .select-field option {
+        @apply py-2 px-4 bg-white text-gray-700;
+    }
+
+    .select-field option:hover,
+    .select-field option:focus,
+    .select-field option:active {
+        @apply bg-blue-600 text-white;
+    }
+
+    /* Première option (placeholder) */
+    .select-field option:first-child {
+        @apply text-gray-400;
+    }
+
+    .btn-primary {
+        @apply px-4 py-2.5 rounded-lg font-semibold bg-blue-900 text-white
+        hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500;
+    }
+
+    .btn-secondary {
+        @apply px-4 py-2.5 rounded-lg font-semibold bg-white text-gray-700
+        border border-gray-300 hover:bg-gray-50;
+    }
+
+    .badge {
+        @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
+    }
+
+    .badge-success {
+        @apply badge bg-green-100 text-green-800;
+    }
+
+    .badge-warning {
+        @apply badge bg-yellow-100 text-yellow-800;
+    }
+
+    .badge-danger {
+        @apply badge bg-red-100 text-red-800;
+    }
+}
+
+.navbar-fixed {
+    @apply fixed top-0 left-0 right-0 z-40 bg-military-900 text-white shadow-lg;
+}
+
+main {
+    @apply min-h-[calc(100vh-5rem)] p-8;
+}
+
+.bg-military-900 { background-color: #0d2538; }
+.bg-military-800 { background-color: #1e3a5f; }
+.bg-military-700 { background-color: #2a4b78; }
+
+/* Couleur primaire pour les liens */
+.text-primary-600 {
+    color: #1e3a5f;
+}
+
+.text-primary-700 {
+    color: #0d2538;
+}
+
+.hover\:text-primary-700:hover {
+    color: #0d2538;
+}

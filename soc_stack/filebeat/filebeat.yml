@@ -1,0 +1,52 @@
+# filebeat/filebeat.yml
+# Filebeat collecte les logs de TOUS tes containers automatiquement
+# Tu ne modifies pas ton code Spring Boot — Filebeat lit les fichiers de log Docker
+
+filebeat.inputs:
+
+  # ─── Logs de tous les containers Docker ───────────────────
+  # Filebeat détecte automatiquement tous les containers qui tournent
+  - type: container
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    processors:
+      # Ajoute les métadonnées Docker (nom du container, image, etc.)
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+      # Parse les logs JSON de Spring Boot
+      - decode_json_fields:
+          fields: ["message"]
+          target: "spring"
+          overwrite_keys: true
+          when:
+            contains:
+              container.name: "backend"  # Seulement pour ton app Spring
+
+  # ─── Logs Suricata (alertes réseau) ───────────────────────
+  - type: log
+    paths:
+      - /suricata-logs/eve.json   # Format JSON de Suricata
+    json.keys_under_root: true
+    json.add_error_key: true
+    fields:
+      log_type: suricata
+    fields_under_root: true
+
+  # ─── Logs Nginx DMZ (trafic entrant) ──────────────────────
+  - type: log
+    paths:
+      - /nginx-logs/access.log
+      - /nginx-logs/error.log
+    fields:
+      log_type: nginx-dmz
+    fields_under_root: true
+
+# ─── Envoi vers Logstash ────────────────────────────────────
+output.logstash:
+  hosts: ["logstash:5044"]
+
+# ─── Logging de Filebeat lui-même ───────────────────────────
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat

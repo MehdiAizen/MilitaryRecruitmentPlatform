@@ -1,0 +1,77 @@
+<!-- wazuh/config/rules/military-platform-rules.xml -->
+<!-- Règles Wazuh personnalisées pour ton application Spring Boot -->
+<!-- Wazuh les charge au démarrage et les applique aux logs reçus -->
+
+<group name="military-recruitment,">
+
+  <!-- ─── Détection basée sur les logs Spring Boot ─────────────── -->
+
+  <!-- Rate limiting déclenché par ton RateLimitingFilter.java -->
+  <rule id="100001" level="10">
+    <decoded_as>json</decoded_as>
+    <field name="message">IP bloquée</field>
+    <description>Military Platform - IP bloquée après trop de tentatives login</description>
+    <group>authentication_failed,brute_force,</group>
+  </rule>
+
+  <!-- Authentification échouée -->
+  <rule id="100002" level="5">
+    <decoded_as>json</decoded_as>
+    <field name="message">Bad credentials</field>
+    <description>Military Platform - Tentative de connexion échouée</description>
+    <group>authentication_failed,</group>
+  </rule>
+
+  <!-- Trop d'authentifications échouées consécutives → alerte niveau 12 -->
+  <rule id="100003" level="12" frequency="5" timeframe="60">
+    <if_matched_sid>100002</if_matched_sid>
+    <description>Military Platform - BRUTE FORCE DÉTECTÉ - 5 échecs en 60s</description>
+    <group>authentication_failed,brute_force,pci_dss_10.2.4,</group>
+  </rule>
+
+  <!-- Accès refusé (403) -->
+  <rule id="100004" level="6">
+    <decoded_as>json</decoded_as>
+    <field name="message">Access is denied</field>
+    <description>Military Platform - Tentative d'accès non autorisé</description>
+    <group>access_control,</group>
+  </rule>
+
+  <!-- Tentatives répétées d'accès non autorisé → escalade de privilèges ? -->
+  <rule id="100005" level="11" frequency="3" timeframe="120">
+    <if_matched_sid>100004</if_matched_sid>
+    <description>Military Platform - ALERTE Escalade de privilèges tentée</description>
+    <group>access_control,privilege_escalation,</group>
+  </rule>
+
+  <!-- Candidature créée (événement normal pour audit) -->
+  <rule id="100006" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="message">Candidature créée</field>
+    <description>Military Platform - Nouvelle candidature soumise</description>
+    <group>audit,</group>
+  </rule>
+
+  <!-- Validation/rejet de candidature -->
+  <rule id="100007" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="message">Candidature ID</field>
+    <field name="message">supprimée|VALIDEE|REJETEE</field>
+    <description>Military Platform - Action sur candidature (audit)</description>
+    <group>audit,</group>
+  </rule>
+
+  <!-- Erreur critique Spring Boot -->
+  <rule id="100008" level="9">
+    <decoded_as>json</decoded_as>
+    <field name="level">ERROR</field>
+    <field name="message">Exception|Error|FATAL</field>
+    <description>Military Platform - Erreur critique applicative</description>
+    <group>application_error,</group>
+  </rule>
+
+  <!-- ─── Réponses automatiques (SOAR basique) ────────────────── -->
+  <!-- Ces règles peuvent déclencher des active responses Wazuh   -->
+  <!-- Ex: bloquer l'IP au niveau firewall après brute force      -->
+
+</group>

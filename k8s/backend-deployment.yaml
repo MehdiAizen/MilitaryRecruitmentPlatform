@@ -1,0 +1,212 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: military-backend
+  namespace: military-app
+  labels:
+    app: military-backend
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: military-backend
+  template:
+    metadata:
+      labels:
+        app: military-backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: military-backend-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: backend
+          image: militaryrecruitmentplatform-main-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: backend-config
+          env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_PASSWORD
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: POSTGRES_USER
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: JWT_SECRET
+            - name: MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: MAIL_PASSWORD
+            - name: MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: MAIL_USERNAME
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+            - name: JAVA_OPTS
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: uploads
+              mountPath: /app/uploads
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads-pvc
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - military-backend
+                topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: military-backend-sa
+  namespace: military-app
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uploads-pvc
+  namespace: military-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: military-app
+  labels:
+    app: military-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: military-backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8081
+      protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: military-backend-hpa
+  namespace: military-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: military-backend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30

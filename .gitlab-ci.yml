@@ -1,0 +1,43 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  IMAGE_NAME_BACKEND: $CI_REGISTRY_IMAGE/military-backend
+  IMAGE_NAME_FRONTEND: $CI_REGISTRY_IMAGE/military-frontend
+
+# Étape 1 : Construire le Backend Java
+build-backend:
+  stage: build
+  image: maven:3.8.7-openjdk-17-slim
+  script:
+    - mvn clean package -DskipTests
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 1 hour
+
+# Étape 2 : Construire le Frontend
+build-frontend:
+  stage: build
+  image: node:20-alpine
+  script:
+    - cd frontend
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist
+    expire_in: 1 hour
+
+# Étape 3 : Déployer sur Kubernetes
+deploy-k8s:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    # On suppose que kubectl est configuré sur le runner GitLab
+    - kubectl apply -f k8s/
+    - kubectl rollout restart deployment/military-backend -n military-app
+    - kubectl rollout restart deployment/military-frontend -n military-app
+  only:
+    - main

@@ -1,0 +1,109 @@
+# suricata/rules/military-platform.rules
+# Règles Suricata personnalisées pour ton application
+# Suricata les charge au démarrage — tu les écris ici, rien à modifier dans ton code Java
+
+# ─── RÈGLES BRUTE FORCE ────────────────────────────────────────────────
+
+# Détecte les attaques brute force sur le login
+alert http any any -> any 8081 (
+    msg:"[MILITARY-PLATFORM] Brute Force tentative login - 5+ essais/60s";
+    flow:to_server,established;
+    content:"POST"; http_method;
+    content:"/api/auth/login"; http_uri;
+    threshold: type both, track by_src, count 5, seconds 60;
+    classtype:attempted-user;
+    priority:2;
+    sid:1000001; rev:1;
+)
+
+# Détecte un scan massif de l'API
+alert http any any -> any 8081 (
+    msg:"[MILITARY-PLATFORM] Scan API suspect - 50+ requêtes/30s";
+    flow:to_server,established;
+    content:"/api/"; http_uri;
+    threshold: type both, track by_src, count 50, seconds 30;
+    classtype:attempted-recon;
+    priority:2;
+    sid:1000002; rev:1;
+)
+
+# ─── RÈGLES INJECTION ──────────────────────────────────────────────────
+
+# Détecte tentative injection SQL dans les requêtes POST
+alert http any any -> any 8081 (
+    msg:"[MILITARY-PLATFORM] Tentative injection SQL";
+    flow:to_server,established;
+    content:"POST"; http_method;
+    pcre:"/(\%27)|(\')|(\-\-)|(\%23)|(#)/i";
+    classtype:web-application-attack;
+    priority:1;
+    sid:1000003; rev:1;
+)
+
+# Détecte tentative XSS
+alert http any any -> any 8081 (
+    msg:"[MILITARY-PLATFORM] Tentative attaque XSS";
+    flow:to_server,established;
+    pcre:"/<script[\s\S]*?>[\s\S]*?<\/script>/i";
+    classtype:web-application-attack;
+    priority:1;
+    sid:1000004; rev:1;
+)
+
+# Détecte tentative de path traversal
+alert http any any -> any 8081 (
+    msg:"[MILITARY-PLATFORM] Tentative Path Traversal";
+    flow:to_server,established;
+    content:"../"; http_uri;
+    classtype:web-application-attack;
+    priority:1;
+    sid:1000005; rev:1;
+)
+
+# ─── RÈGLES ACCÈS NON AUTORISÉ ─────────────────────────────────────────
+
+# Trop de 401 depuis une même IP (tentative accès sans token)
+alert http any 8081 -> any any (
+    msg:"[MILITARY-PLATFORM] Trop de réponses 401 - IP suspecte";
+    flow:to_client,established;
+    content:"401"; http_stat_code;
+    threshold: type both, track by_dst, count 10, seconds 60;
+    classtype:attempted-user;
+    priority:2;
+    sid:1000006; rev:1;
+)
+
+# Trop de 403 depuis une même IP (accès refusé répété)
+alert http any 8081 -> any any (
+    msg:"[MILITARY-PLATFORM] Trop de réponses 403 - Escalade de privilèges ?";
+    flow:to_client,established;
+    content:"403"; http_stat_code;
+    threshold: type both, track by_dst, count 5, seconds 60;
+    classtype:attempted-user;
+    priority:2;
+    sid:1000007; rev:1;
+)
+
+# ─── RÈGLES SCAN DE PORTS ──────────────────────────────────────────────
+
+# Détecte scan SYN (nmap -sS)
+alert tcp any any -> any any (
+    msg:"[NETWORK] Scan SYN détecté";
+    flags:S;
+    threshold: type both, track by_src, count 20, seconds 5;
+    classtype:attempted-recon;
+    priority:3;
+    sid:1000008; rev:1;
+)
+
+# ─── RÈGLES EXFILTRATION ───────────────────────────────────────────────
+
+# Réponse anormalement grande (potentielle exfiltration de données)
+alert http any 8081 -> any any (
+    msg:"[MILITARY-PLATFORM] Réponse anormalement grande - Exfiltration?";
+    flow:to_client,established;
+    dsize:>50000;
+    classtype:policy-violation;
+    priority:3;
+    sid:1000009; rev:1;
+)

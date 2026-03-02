@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-deny-db-access
+  namespace: military-app
+spec:
+  # S'applique au pod Frontend
+  podSelector:
+    matchLabels:
+      app: military-frontend
+  policyTypes:
+    - Egress
+  egress:
+    # 1. Permettre de parler au Backend
+    - to:
+        - podSelector:
+            matchLabels:
+              app: military-backend
+      ports:
+        - protocol: TCP
+          port: 8081
+
+    # 2. Permettre le DNS (Indispensable pour résoudre 'backend-service')
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
